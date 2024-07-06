@@ -1,89 +1,122 @@
-const axios = require('axios');
+const OpenAI = require('openai');
 require('dotenv').config();
 const { getAllRooms, getPrice, createBooking } = require('../services/bookingService');
 
 const apiKey = process.env.OPENAI_API_KEY;
 
+const openai = new OpenAI({
+    apiKey: apiKey,
+});
+
 async function sendMessage(prompt) {
-    const url = 'https://api.openai.com/v1/chat/completions';
-    const data = {
-        model: 'gpt-4',
-        messages: [
-            { role: 'system', content: 'You are a helpful assistant.' },
-            { role: 'user', content: prompt }
-        ],
-        functions: functionDescriptions,
-        function_call: "auto"
-    };
+    const messages = [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: prompt }
+    ];
 
     try {
-        const response = await axios.post(url, data, {
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            }
+        const response = await openai.chat.completions.create({
+            model: 'gpt-3.5-turbo',
+            messages: messages,
+            tools: tools,
         });
-        const functionMap = {
-            "getPrice": getPrice,
-            "getAllRooms": getAllRooms,
-            "createBooking": createBooking
-        };
 
-        const output = response.data.choices[0].message.function_call;
-        const functionName = output.name;
-        const argumentsObject = JSON.parse(output.arguments);
+        const responseMessage = response.choices[0].message;
+        const toolCalls = responseMessage.tool_calls;
 
-        const functionResponse = await functionMap[functionName](argumentsObject);
-        return functionResponse;
+        if (toolCalls) {
+            const availableFunctions = {
+                "getPrice": getPrice,
+                "getAllRooms": getAllRooms,
+                "createBooking": createBooking
+            };
+            messages.push(responseMessage);
 
+            for (const toolCall of toolCalls) {
+                const functionName = toolCall.function.name;
+                const functionToCall = availableFunctions[functionName];
+                const functionArgs = JSON.parse(toolCall.function.arguments);
+                const functionResponse = await functionToCall(functionArgs);
+
+                messages.push({
+                    tool_call_id: toolCall.id,
+                    role: "tool",
+                    name: functionName,
+                    content: JSON.stringify(functionResponse),
+                });
+            }
+
+            const secondResponse = await openai.chat.completions.create({
+                model: "gpt-3.5-turbo",
+                messages: messages,
+            });
+
+            return secondResponse.choices[0].message.content;
+        }
+
+        return responseMessage.content;
     } catch (error) {
         console.error('Error:', error.response ? error.response.data : error.message);
+        throw new Error('An error occurred while processing the request.');
     }
 }
 
-const functionDescriptions = [
+const tools = [
     {
         "name": "getAllRooms",
-        "description": "Get the list of all available rooms",
+        "description": "Get the available room options. This function returns a list of rooms that are available to book. You can get all the information of the rooms from this function.",
+        "type": "function",
+        "function": {
+            "name": "getAllRooms",
+            "parameters": {}
+        }
     },
     {
         "name": "getPrice",
-        "description": "Get the price of a specific room which the user has given",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "roomName": {
-                    "type": "string",
-                    "description": "The name of the specific room"
-                }
-            },
-            "required": ["roomName"]
+        "description": "Get the price of a specific room. This function returns the price of the room by name.",
+        "type": "function",
+        "function": {
+            "name": "getPrice",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "roomName": {
+                        "type": "string",
+                        "description": "the name of the specific room"
+                    }
+                },
+                "required": ["roomName"]
+            }
         }
     },
     {
         "name": "createBooking",
-        "description": "Creates a booking of the room after user has given all the parameters",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "roomName": {
-                    "type": "string",
-                    "description": "The name of the room which user wants to book"
+        "description": "Book a room for a guest. This function books a room for a guest. You need to provide the room ID, guest's full name, email, and the number of nights to book the room for. The function returns the booking confirmation details. The parameters must be JSON encoded.",
+        "type": "function",
+        "function": {
+            "name": "createBooking",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "roomId": {
+                        "type": "integer",
+                        "description": "Id of the room which user wants to book"
+                    },
+                    "fullName": {
+                        "type": "string",
+                        "description": "Name of the user"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Email of the user"
+                    },
+                    "nights": {
+                        "type": "integer",
+                        "description": "Number of nights the user wants to book the room for"
+                    }
                 },
-                "fullName": {
-                    "type": "string",
-                    "description": "Name of the user"
-                },
-                "email": {
-                    "type": "string",
-                    "description": "Email of the user"
-                },
-                "nights": {
-                    "type": "integer",
-                    "description": "Number of nights the user wants to book the room for"
-                }
-            },
-            "required": ["roomName", "fullName", "email", "nights"]
+                "required": ["roomId", "fullName", "email", "nights"]
+            }
         }
     }
 ];
@@ -93,15 +126,10 @@ const processMessage = async (message) => {
         const response = await sendMessage(message);
         console.log("Received: " + response);
 
-        // Format the response if it's an array of objects
-        if (Array.isArray(response)) {
-            return response.map(room => `Room ID: ${room.id}, Room Name: ${room.name}, Price: ${room.price}`).join('\n');
-        }
-
         return response;
     } catch (error) {
         console.error('Error processing message:', error);
-        return null;
+        return 'An error occurred while processing your request. Please try again later.';
     }
 };
 
