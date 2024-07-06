@@ -66,9 +66,9 @@ const functionDescriptions = [
         "parameters": {
             "type": "object",
             "properties": {
-                "roomId": {
-                    "type": "integer",
-                    "description": "Id of the room which user wants to book"
+                "roomName": {
+                    "type": "string",
+                    "description": "The name of the room which user wants to book"
                 },
                 "fullName": {
                     "type": "string",
@@ -83,7 +83,7 @@ const functionDescriptions = [
                     "description": "Number of nights the user wants to book the room for"
                 }
             },
-            "required": ["roomId", "fullName", "email", "nights"]
+            "required": ["roomName", "fullName", "email", "nights"]
         }
     }
 ];
@@ -95,7 +95,7 @@ const processMessage = async (message) => {
 
         // Format the response if it's an array of objects
         if (Array.isArray(response)) {
-            return response.map(room => `Room Name: ${room.name}, Price: ${room.price}`).join('\n');
+            return response.map(room => `Room ID: ${room.id}, Room Name: ${room.name}, Price: ${room.price}`).join('\n');
         }
 
         return response;
