@@ -6,13 +6,21 @@ const sequelize = new Sequelize(config.database, config.username, config.passwor
     dialect: config.dialect
 });
 
-const Booking = sequelize.define('Booking', {
-    roomId: { type: DataTypes.INTEGER, allowNull: false },
-    fullName: { type: DataTypes.STRING, allowNull: false },
-    email: { type: DataTypes.STRING, allowNull: false },
-    nights: { type: DataTypes.INTEGER, allowNull: false }
+const Conversation = sequelize.define('Conversation', {
+    userId: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    userMessage: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    botResponse: {
+        type: DataTypes.STRING,
+        allowNull: false
+    }
 });
 
 sequelize.sync();
 
-module.exports = { Booking, sequelize };
+module.exports = { Conversation, sequelize };
