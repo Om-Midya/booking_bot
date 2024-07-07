@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { Booking } = require('../models');
+
 
 async function getAllRooms() {
     try {
