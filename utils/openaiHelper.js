@@ -8,12 +8,9 @@ const openai = new OpenAI({
     apiKey: apiKey,
 });
 
-async function sendMessage(prompt) {
-    const messages = [
-        { role: 'system', content: 'You are a helpful assistant.' },
-        { role: 'user', content: prompt }
-    ];
+async function sendMessage({prompt, messages}) {
 
+    messages.push({ role: 'user', content: prompt })
     try {
         const response = await openai.chat.completions.create({
             model: 'gpt-3.5-turbo',
@@ -38,19 +35,28 @@ async function sendMessage(prompt) {
                 const functionArgs = JSON.parse(toolCall.function.arguments);
                 const functionResponse = await functionToCall(functionArgs);
 
+                // Construct and push the response message for the tool call
                 messages.push({
                     tool_call_id: toolCall.id,
                     role: "tool",
                     name: functionName,
                     content: JSON.stringify(functionResponse),
                 });
+
+                if(functionResponse.missingParams){
+                    for(const prompt of functionResponse.missingParams){
+                        messages.push({role: 'user', content: prompt})
+                    }
+
+                    return await sendMessage({prompt:'', messages})
+                }
             }
 
             const secondResponse = await openai.chat.completions.create({
                 model: "gpt-3.5-turbo",
                 messages: messages,
             });
-
+            console.log(messages)
             return secondResponse.choices[0].message.content;
         }
 
@@ -121,9 +127,9 @@ const tools = [
     }
 ];
 
-const processMessage = async (message) => {
+const processMessage = async (prompt,messages) => {
     try {
-        const response = await sendMessage(message);
+        const response = await sendMessage({prompt,messages});
         console.log("Received: " + response);
 
         return response;
