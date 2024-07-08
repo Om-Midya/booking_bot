@@ -74,3 +74,8 @@ node server.js
 - The bot will respond with a message body that contains the bot response.
 ### Usage
 After starting the bot, you can interact with it through Telegram by sending messages. Use the /start command to begin a conversation with the bot and follow the prompts to view available rooms or book a room. 
+
+### Video Demo
+https://github.com/Om-Midya/booking_bot/assets/76900049/8057c578-3fc1-4a8c-b4f1-3e6e30609c57
+
+
