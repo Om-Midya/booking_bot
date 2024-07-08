@@ -8,19 +8,13 @@ const openai = new OpenAI({
     apiKey: apiKey,
 });
 
-let allMessages = [{role: 'system', content: "You are a bot that helps travelers to book a room at the Bot9 Palace. Extract checkin data user name, email number of nights for stay and name of room to stay in from the user. Respond to queries relate to booking room at the Bot9 Palace only. Do not handle queries about other hotels or general queries, say that you can only help with booking rooms at the Bot9 Palace. When a user choose a room ask them to confirm booking with their name and email and the room name, automatically add room id and number of nights according to the user's check-in date. If the user doesn't provide a check-in date, ask them to provide it. If the user doesn't provide a name or email or other details, ask them to provide it before confirming. If the user doesn't confirm the booking, ask them if they would like to book another room. If the user confirms the booking, generate a booking confirmation, thank them and say goodbye." }]
+async function sendMessage({prompt, messages}) {
 
-async function sendMessage(prompt, messages) {
-
-    if (messages || messages.length > 0) {
-        allMessages.push(...messages)
-    }
-
-    allMessages.push({ role: 'user', content: prompt })
+    messages.push({ role: 'user', content: prompt })
     try {
         const response = await openai.chat.completions.create({
             model: 'gpt-3.5-turbo',
-            messages: allMessages,
+            messages: messages,
             tools: tools,
         });
 
@@ -33,7 +27,7 @@ async function sendMessage(prompt, messages) {
                 "getAllRooms": getAllRooms,
                 "createBooking": createBooking
             };
-            allMessages.push(responseMessage);
+            messages.push(responseMessage);
 
             for (const toolCall of toolCalls) {
                 const functionName = toolCall.function.name;
@@ -42,7 +36,7 @@ async function sendMessage(prompt, messages) {
                 const functionResponse = await functionToCall(functionArgs);
 
                 // Construct and push the response message for the tool call
-                allMessages.push({
+                messages.push({
                     tool_call_id: toolCall.id,
                     role: "tool",
                     name: functionName,
@@ -51,7 +45,7 @@ async function sendMessage(prompt, messages) {
 
                 if(functionResponse.missingParams){
                     for(const prompt of functionResponse.missingParams){
-                        allMessages.push({role: 'user', content: prompt})
+                        messages.push({role: 'user', content: prompt})
                     }
 
                     return await sendMessage({prompt:'', messages})
@@ -60,9 +54,9 @@ async function sendMessage(prompt, messages) {
 
             const secondResponse = await openai.chat.completions.create({
                 model: "gpt-3.5-turbo",
-                messages: allMessages,
+                messages: messages,
             });
-            console.log(allMessages)
+            console.log(messages)
             return secondResponse.choices[0].message.content;
         }
 
@@ -133,9 +127,9 @@ const tools = [
     }
 ];
 
-const processMessage = async (userMessage,messages) => {
+const processMessage = async (prompt,messages) => {
     try {
-        const response = await sendMessage(userMessage,messages);
+        const response = await sendMessage({prompt,messages});
         console.log("Received: " + response);
 
         return response;
