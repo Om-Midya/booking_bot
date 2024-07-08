@@ -16,8 +16,9 @@ const Conversation = sequelize.define('Conversation', {
         allowNull: false
     },
     botResponse: {
-        type: DataTypes.STRING,
-        allowNull: false
+        type: DataTypes.TEXT,
+        allowNull: false,
+
     }
 });
 
