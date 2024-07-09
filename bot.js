@@ -17,6 +17,7 @@ bot.on('text', async (ctx) => {
         chatId = ctx.message.chat.id;
     }
     const userMessage = ctx.message.text;
+    await ctx.telegram.sendChatAction(chatId,'typing');
     try{
         const response = await fetch('http://localhost:3002/chat/', {
             method: 'POST',
